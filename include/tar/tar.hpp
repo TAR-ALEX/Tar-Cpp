@@ -36,6 +36,7 @@
 #include <map>
 #include <filesystem>
 #include <fstream>
+#include <io_tools/isubstream.hpp>
 
 namespace tar{
 	namespace   // anonymous namespace
@@ -59,7 +60,8 @@ namespace tar{
 			uint8_t devmajor[8];             /* 329 */
 			uint8_t devminor[8];             /* 337 */
 			uint8_t prefix[155];             /* 345 */								 	 
-											/* 500 */
+			uint8_t padding[12];			 /* 500 */
+											 /* 512 */
 		};
 
 		struct parsed_posix_header
@@ -151,11 +153,14 @@ namespace tar{
 
 			return result;
 		}
+
 		std::unique_ptr< std::ifstream > inputStreamPtr;
 		std::istream& inputStream;
 		std::map< std::string, std::size_t > files;
     public:
 		bool throwOnUnsupported = true;
+		bool allowSeekg = false;
+
         Reader(std::string const& filename):
 			inputStreamPtr(std::make_unique< std::ifstream >(
 				filename, std::ios_base::in | std::ios_base::binary
@@ -166,6 +171,79 @@ namespace tar{
 		Reader(std::istream& is):
 			inputStream(is)
 		{}
+
+
+
+		io_tools::isubstream getFileStream(std::filesystem::path source){
+			std::array< char, 512 > buffer;
+			std::array< char, 4096 > dataBuffer;
+			while(inputStream){
+				inputStream.read(buffer.data(), 512);
+
+				if(!inputStream) break;
+				
+				parsed_posix_header header;
+				header = parsePosixHeader(buffer);
+				
+				if(header.name == "././@LongLink"){
+					std::string longname = "";
+					longname.resize(header.size);
+					if(longname.length() != header.size){
+						throw std::runtime_error("Could not allocate a string of size " + std::to_string(header.size));
+					}
+					if(!inputStream.read(longname.data(), header.size)){
+						throw std::runtime_error("Failed to read longname of size " + std::to_string(header.size));
+					}
+
+					int nameBlockOffset = (512 - (header.size % 512)) % 512;
+					inputStream.read(buffer.data(), nameBlockOffset);
+					inputStream.read(buffer.data(), 512);
+					if(!inputStream) break;
+					header = parsePosixHeader(buffer);
+					header.name = longname;
+				}
+
+				std::streampos dataBlockOffset = (512 - (header.size % 512)) % 512;
+
+				std::filesystem::path inTarPath = header.name;
+				source = source.lexically_normal();
+				inTarPath = inTarPath.lexically_normal();
+				
+				if(source != inTarPath){
+					if(allowSeekg){
+						std::streampos pos = header.size + dataBlockOffset;
+						inputStream.seekg(inputStream.tellg() + pos);
+					}else{
+						for(std::size_t i = header.size + dataBlockOffset; i > 0;){	
+							int howMuchToRead = (dataBuffer.size() < i) ? (dataBuffer.size()) : (i);
+							inputStream.read(dataBuffer.data(), howMuchToRead);
+							i -= howMuchToRead;
+						}
+					}
+				} else if(header.typeflag == '5'){ // is dir
+					throw std::runtime_error("File is a directory " + std::to_string(header.size));
+				}else if(header.typeflag == '0'){ // is file
+					return io_tools::isubstream(inputStream.rdbuf(), inputStream.tellg(), header.size);
+				}else{
+					if(throwOnUnsupported){
+						throw std::runtime_error(
+							"Tar has an unsuppoted entry type (TODO - not implemented): " + header.name
+						);
+					}
+				}
+
+				if(!inputStream){
+					throw std::runtime_error(
+						"Tar filename-entry with illegal size: " + header.name
+					);
+				}
+			}
+			throw std::runtime_error(
+				"File cannot be found in tar: " + source.string()
+			);
+		}
+
+
 
 		void extractAll(std::filesystem::path destination){
 			extractPath("./", destination);

@@ -34,6 +34,7 @@ and create a vendor.txt file and add the following entries:
 
 ```
 git "https://github.com/TAR-ALEX/Tar-Cpp" main "./include" "./vendor/include",
+git "https://github.com/TAR-ALEX/io_tools.git" master "./include" "./vendor/include",
 
 ```
 
