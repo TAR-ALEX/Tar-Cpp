@@ -6,7 +6,7 @@ Sample usage:
 
 
 
-```
+```c++
 #include <iostream>
 #include <fstream>
 #include <tar/tar.hpp>
