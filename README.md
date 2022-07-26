@@ -5,7 +5,6 @@ A c++ / cpp implementation of tar file extraction. A header only library.
 Sample usage:
 
 
-
 ```c++
 #include <iostream>
 #include <fstream>
@@ -14,12 +13,12 @@ Sample usage:
 using namespace std;
 
 int main(){
-    //use your own tar file
-    string filename = "../boost_1_79_0.tar";
-
+    //sample tar provided
+    string filename = "./sample.tar";
     tar::Reader r(filename);
-    r.extractPath("./boost_1_79_0/boost.png", "./test/boost.png");
-    r.extractAll("./test/fullExtract/");
+    r.throwOnUnsupported = false;
+    r.linksAreCopies = true;
+    r.extractPath("tar-test/", "test/");
 
     return 0;
 }
