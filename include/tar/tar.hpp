@@ -227,7 +227,7 @@ namespace tar {
 
 		template <bool extract = false>
 		void indexFiles(std::filesystem::path source, std::filesystem::path destination) {
-			if (files.size() != 0 && !extract) return;
+			if (paths.size() != 0 && !extract) return;
 
 			files.clear();
 			hardLinks.clear();
@@ -356,7 +356,9 @@ namespace tar {
 				if (!extractSoftLinksAsCopies) {
 					auto [isValid, _] = changeRoot(rootLinkedPath, source, destination);
 					if(isValid){
-						std::filesystem::create_symlink(linkedPath, extractPath);
+						try{
+							std::filesystem::create_symlink(linkedPath, extractPath);
+						} catch (...) {}
 						continue;
 					}
 				}
