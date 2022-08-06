@@ -28,22 +28,43 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <fstream>
+
+#pragma once
+
+#include <estd/substreambuf.hpp>
 #include <iostream>
-#include <tar/tar.hpp>
+#include <memory>
 
-using namespace std;
+namespace estd {
+	class isubstream : public std::istream {
+	public:
+		isubstream() : std::istream(&buffer_) {}
 
-int main() {
-	//sample tar provided
-	string filename = "./sample.tar";
-	tar::Reader r(filename);
-	r.throwOnUnsupported = false;
-	r.extractSoftLinksAsCopies = true;
-	r.extractHardLinksAsCopies = true;
-	r.throwOnInfiniteRecursion = false;
-	r.extractPath("tar-test/", "test/");
-	auto file = r.open("tar-test/recurse/recurse/recurse/recurse/soft");
-	cout << file.rdbuf() << endl;
-	return 0;
-}
+		isubstream(std::streambuf* buffer, int64_t start, int64_t size) :
+			std::istream(&buffer_), buffer_(buffer, std::streampos(start), std::streamsize(size)) {}
+
+		isubstream(std::streambuf& buffer, int64_t start, int64_t size) :
+			std::istream(&buffer_), buffer_(&buffer, std::streampos(start), std::streamsize(size)) {}
+
+		isubstream(std::istream& buffer, int64_t start, int64_t size) : isubstream(buffer.rdbuf(), start, size) {}
+
+		isubstream(std::istream* buffer, int64_t start, int64_t size) : isubstream(buffer->rdbuf(), start, size) {}
+
+		isubstream(isubstream const& other) : std::istream(&buffer_), buffer_(other.buffer_) {}
+
+		isubstream(isubstream&& other) : std::istream(&buffer_), buffer_(other.buffer_) {}
+
+		isubstream& operator=(const isubstream& other) {
+			buffer_ = other.buffer_;
+			return *this;
+		}
+
+		isubstream& operator=(isubstream&& other) {
+			buffer_ = other.buffer_;
+			return *this;
+		}
+
+	private:
+		substreambuf buffer_;
+	};
+};// namespace estd

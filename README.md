@@ -6,21 +6,24 @@ Sample usage:
 
 
 ```c++
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <tar/tar.hpp>
 
 using namespace std;
 
-int main(){
-    //sample tar provided
-    string filename = "./sample.tar";
-    tar::Reader r(filename);
-    r.throwOnUnsupported = false;
-    r.linksAreCopies = true;
-    r.extractPath("tar-test/", "test/");
-
-    return 0;
+int main() {
+	//sample tar provided
+	string filename = "./sample.tar";
+	tar::Reader r(filename);
+	r.throwOnUnsupported = false;
+	r.extractSoftLinksAsCopies = true;
+	r.extractHardLinksAsCopies = true;
+	r.throwOnInfiniteRecursion = false;
+	r.extractPath("tar-test/", "test/");
+	auto file = r.open("tar-test/recurse/recurse/recurse/recurse/soft");
+	cout << file.rdbuf() << endl;
+	return 0;
 }
 ```
 
@@ -33,8 +36,6 @@ and create a vendor.txt file and add the following entries:
 
 ```
 git "https://github.com/TAR-ALEX/Tar-Cpp" main "./include" "./vendor/include",
-git "https://github.com/TAR-ALEX/io_tools.git" master "./include" "./vendor/include",
+git "https://github.com/TAR-ALEX/substreams_cpp" master "./include" "./vendor/include",
 
 ```
-
-Note: The library only supports files and directories, no symlinks or hardlinks are supported yet
