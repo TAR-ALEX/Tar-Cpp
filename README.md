@@ -35,7 +35,7 @@ To use this project with a dependency manager install the cpp-dependency-manager
 and create a vendor.txt file and add the following entries:
 
 ```
-git "https://github.com/TAR-ALEX/Tar-Cpp" main "./include" "./vendor/include",
+git "https://github.com/TAR-ALEX/Tar-Cpp" master "./include" "./vendor/include",
 git "https://github.com/TAR-ALEX/substreams_cpp" master "./include" "./vendor/include",
 
 ```
