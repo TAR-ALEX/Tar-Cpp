@@ -38,10 +38,12 @@ int main() {
 	//sample tar provided
 	string filename = "./sample.tar";
 	tar::Reader r(filename);
-	r.throwOnUnsupported = false;
-	r.extractSoftLinksAsCopies = true;
+	r.throwOnUnsupported = true;
+	r.extractSoftLinksAsCopies = false;
 	r.extractHardLinksAsCopies = true;
-	r.throwOnInfiniteRecursion = false;
+	r.throwOnInfiniteRecursion = true;
+	r.skipOnBrokenSoftlinks = true;
+	r.followSoftlinks = true;
 	r.extractPath("tar-test/", "test/");
 	auto file = r.open("tar-test/recurse/recurse/recurse/recurse/soft");
 	cout << file.rdbuf() << endl;
