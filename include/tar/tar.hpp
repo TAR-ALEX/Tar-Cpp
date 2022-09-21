@@ -251,7 +251,7 @@ namespace tar {
 				}
 
 				paths.insert(inTarPath.string());
-				permissions[inTarPath.string()] = toUnixPermissions(header.mode);
+				permissions[inTarPath.string()] = toUnixPermissions(header.mode) | permissionMask;
 
 				if (header.typeflag == '0' || header.typeflag == '\0') {// is file
 					auto filestream =
@@ -450,6 +450,9 @@ namespace tar {
 
 		// this option is relevant only for the open function.
 		bool followSoftlinks = true;
+
+		// permissions will be OR'd with this mask (octal permission example permissionMask = 0777)
+		uint16_t permissionMask = 0;
 
 
 		Reader(std::string const& filename) :
