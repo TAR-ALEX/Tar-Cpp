@@ -176,10 +176,10 @@ namespace tar {
 			auto chunkToUnix = [](uint16_t chunk) {
 				chunk &= 7;// 7 in octal
 				switch (chunk) {
-					case 0: return 0;
-					case 1: return 7;
-					case 2: return 6;
-					case 3: return 4;
+					case 0: return 0; // none
+					case 1: return 7; // all
+					case 2: return 6; // read and write
+					case 3: return 4; // read only
 				}
 				return 6;
 			};
