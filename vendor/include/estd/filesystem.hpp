@@ -48,26 +48,46 @@ namespace estd {
         private:
             std::string path;
 
+            void winToUnixPath() {
+                //if windows
+                path = estd::string_util::replace_all(path, "\\", "/");
+            }
+
         public:
             Path() noexcept {}
             Path(const Path& p) = default;
             Path(Path&& p) = default;
-            Path(std::filesystem::path&& source) { path = source; }
+            Path(std::filesystem::path&& source) {
+                path = source.string();
+                winToUnixPath();
+            }
             template <class Source>
             Path(const Source& source) {
                 path = source;
+                winToUnixPath();
             }
-            Path(std::string source) { path = source; }
-            Path(const char* source) { path = source; }
-            Path(const std::filesystem::path& source) { path = source; }
+            Path(std::string source) {
+                path = source;
+                winToUnixPath();
+            }
+            Path(const char* source) {
+                path = source;
+                winToUnixPath();
+            }
+            Path(const std::filesystem::path& source) {
+                path = source.string();
+                winToUnixPath();
+            }
 
             Path& operator=(const Path& p) = default;
             Path& operator=(Path&& p) = default;
 
-            bool operator==(Path&& other) { return path == other.string(); }
-            bool operator!=(Path&& other) { return path != other.string(); }
-            bool operator==(const Path& other) { return path == other.string(); }
-            bool operator!=(const Path& other) { return path != other.string(); }
+            bool operator==(Path&& other) const { return path == other.string(); }
+            bool operator==(const Path& other) const { return path == other.string(); }
+#if __cplusplus < 202002L
+            bool operator!=(Path&& other) const { return path != other.string(); }
+            bool operator!=(const Path& other) const { return path != other.string(); }
+#endif
 
             friend Path operator/(const Path& lhs, const Path& rhs) { return Path(lhs.string() + "/" + rhs.string()); }
             friend Path operator+(const Path& lhs, const Path& rhs) { return Path(lhs.string() + rhs.string()); }
@@ -93,7 +113,7 @@ namespace estd {
 
             Path normalize() {
                 Path tmp = std::filesystem::path(path).lexically_normal();
-                if (tmp == "" || tmp == "." || tmp == "./") { tmp = "."; }
+                if (tmp == "" || tmp == "." || tmp == "./") { tmp = "./"; }
                 return tmp;
             }
 
@@ -103,7 +123,7 @@ namespace estd {
             bool contains(Path& other) { // TODO: cover edge cases
                 Path left = Path((*this) / "").normalize();
                 Path right = Path(other / "").normalize();
-                if (left == ".") { return true; }
+                if (left == "./") { return true; }
 
                 return estd::string_util::hasPrefix(right, left);
             }
@@ -124,6 +144,46 @@ namespace estd {
             Path getAntiSuffix() { return splitSuffix().first; }
             Path replaceSuffix(Path s) { return splitSuffix().first / s; }
             Path replacePrefix(Path s) { return s / splitPrefix().second; }
+
+            bool hasExtention() { return splitExtention().second != ""; }
+            std::string getExtention() { return splitExtention().second; }
+            Path replaceExtention(std::string s) { return splitExtention().first + "." + s; }
+
+            std::string getLongExtention() { return splitLongExtention().second; }
+            Path replaceLongExtention(std::string s) { return splitLongExtention().first + "." + s; }
+            
+
+            std::pair<Path, std::string> splitExtention() {
+                size_t mid_pos = 0;
+                std::string source = string();
+                std::string psL = "";
+                std::string psR = "";
+                if(isDirectory()) return {source, ""};
+                if ((mid_pos = source.rfind(".")) != std::string::npos) {
+                    psL = source.substr(0, mid_pos);
+                    psR = source.substr(mid_pos + 1);
+                } else {
+                    return {source, ""};
+                }
+                return {psL, psR};
+            }
+
+
+            std::pair<Path, std::string> splitLongExtention() {
+                size_t mid_pos = 0;
+                std::string source = string();
+                std::string psL = "";
+                std::string psR = "";
+                if(isDirectory()) return {source, ""};
+                source = estd::string_util::splitAll(source, "/").back();
+                if ((mid_pos = source.find(".")) != std::string::npos) {
+                    psL = source.substr(0, mid_pos);
+                    psR = source.substr(mid_pos + 1);
+                } else {
+                    return {source, ""};
+                }
+                return {psL, psR};
+            }
 
             std::pair<Path, Path> splitPrefix() {
                 size_t mid_pos = 0;
@@ -483,7 +543,10 @@ namespace estd {
             if (err) throw err.value();
         }
         inline void copyFile(Path from, Path to, const uint64_t opt = CopyOptions::none) {
-            if (from.isFile() && to.isDirectory()) copyFile(from, to / from.getSuffix(), opt);
+            if (from.isFile() && to.isDirectory()) {
+                copyFile(from, to / from.getSuffix(), opt);
+                return;
+            }
             if (from.isDirectory()) throwError("copyFile cannot copy a directory", &from);
             // At this point we can assume that from is a file and to is also a file (in terms of paths)
 
@@ -544,10 +607,10 @@ namespace estd {
                     copySoftLink(from.removeEmptySuffix(), to.removeEmptySuffix(), opt);
                 } else if (from.isFile()) { // TODO: test strange files such as sockets and blocks under this if
                     // std::cout << "copy_file(" << from << ", " << to << ")\n";
-                    copyFile(from.removeEmptySuffix(), to.removeEmptySuffix(), opt);
+                    copyFile(from, to, opt);
                 } else if (from.isDirectory()) {
                     // std::cout << "copy_dir(" << from << ", " << to << ")\n";
-                    copyDirectory(from.addEmptySuffix(), to.addEmptySuffix(), opt);
+                    copyDirectory(from, to.addEmptySuffix(), opt);
                 }
             } catch (std::exception& e) { throw std::runtime_error(e.what()); }
         }
@@ -565,7 +628,7 @@ namespace estd {
                     name = root / name;
                     if (!std::filesystem::exists(name)) {
                         std::filesystem::create_directories(name);
-                        return name.lexically_normal();
+                        return name.lexically_normal().string();
                     }
                 }
             }
